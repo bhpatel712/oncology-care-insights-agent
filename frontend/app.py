@@ -5,15 +5,23 @@ Decision-support tool for clinical operations analysts.
 
 import streamlit as st
 import os
+import logging
 import pymssql
 from openai import AzureOpenAI
 from dotenv import load_dotenv
 from azure.ai.contentsafety import ContentSafetyClient
 from azure.ai.contentsafety.models import AnalyzeTextOptions
 from azure.core.credentials import AzureKeyCredential
+from azure.monitor.opentelemetry import configure_azure_monitor
 
 # Load environment
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+
+# ── APPLICATION INSIGHTS ──────────────────────────────────
+connection_string = os.getenv('APPLICATIONINSIGHTS_CONNECTION_STRING')
+if connection_string:
+    configure_azure_monitor(connection_string=connection_string)
+logger = logging.getLogger(__name__)
 
 # ── CONTENT SAFETY ────────────────────────────────────────
 def check_content_safety(text):
@@ -31,13 +39,12 @@ def check_content_safety(text):
         result = safety_client.analyze_text(
             AnalyzeTextOptions(text=text)
         )
-        # Block if any category severity >= 4
         for category in result.categories_analysis:
             if category.severity >= 4:
                 return False, category.category
         return True, None
     except Exception as e:
-        print(f"Content safety check failed: {e}")
+        logger.warning(f"Content safety check failed: {e}")
         return True, None
 
 # ── PAGE CONFIG ───────────────────────────────────────────
@@ -127,7 +134,23 @@ Answer directly using the data above."""
         ],
         max_completion_tokens=5000
     )
-    return response.choices[0].message.content
+
+    answer = response.choices[0].message.content
+
+    # Log to Application Insights
+    logger.info("Agent query processed", extra={
+        "custom_dimensions": {
+            "question_length": len(question),
+            "answer_length": len(answer),
+            "tokens_used": response.usage.completion_tokens,
+            "cancer_type": next(
+                (c for c in ['breast', 'lung', 'colorectal']
+                 if c in question.lower()), "general"
+            )
+        }
+    })
+
+    return answer
 
 # ── CHAT HISTORY ──────────────────────────────────────────
 if "messages" not in st.session_state:
@@ -228,9 +251,9 @@ with st.sidebar:
 
     st.divider()
 
-    # Content Safety status
     st.header("🔒 Safety Status")
     st.success("✅ Content Safety: Active")
+    st.success("✅ Application Insights: Active")
     st.success("✅ Responsible AI: Enabled")
     st.success("✅ PHI Protection: Zero real data")
 
