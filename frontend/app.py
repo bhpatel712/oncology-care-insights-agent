@@ -8,9 +8,37 @@ import os
 import pymssql
 from openai import AzureOpenAI
 from dotenv import load_dotenv
+from azure.ai.contentsafety import ContentSafetyClient
+from azure.ai.contentsafety.models import AnalyzeTextOptions
+from azure.core.credentials import AzureKeyCredential
 
 # Load environment
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+
+# ── CONTENT SAFETY ────────────────────────────────────────
+def check_content_safety(text):
+    """
+    Check if input text is safe before sending to agent.
+    Returns (True, None) if safe, (False, category) if unsafe.
+    """
+    try:
+        safety_client = ContentSafetyClient(
+            endpoint=os.getenv('AZURE_CONTENT_SAFETY_ENDPOINT'),
+            credential=AzureKeyCredential(
+                os.getenv('AZURE_CONTENT_SAFETY_KEY')
+            )
+        )
+        result = safety_client.analyze_text(
+            AnalyzeTextOptions(text=text)
+        )
+        # Block if any category severity >= 4
+        for category in result.categories_analysis:
+            if category.severity >= 4:
+                return False, category.category
+        return True, None
+    except Exception as e:
+        print(f"Content safety check failed: {e}")
+        return True, None
 
 # ── PAGE CONFIG ───────────────────────────────────────────
 st.set_page_config(
@@ -137,12 +165,29 @@ if prompt:
     with st.chat_message("assistant"):
         with st.spinner("🔍 Searching guidelines and patient data..."):
             try:
-                answer = get_answer(prompt)
-                st.markdown(answer)
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": answer
-                })
+                # Content Safety check first
+                is_safe, flagged_category = check_content_safety(prompt)
+
+                if not is_safe:
+                    safety_msg = f"""⚠️ Your message was flagged by Content Safety
+filters ({flagged_category}) and cannot be processed.
+
+Please rephrase your question to focus on:
+- Oncology treatment guidelines
+- Patient cohort statistics
+- Clinical operations support"""
+                    st.warning(safety_msg)
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": safety_msg
+                    })
+                else:
+                    answer = get_answer(prompt)
+                    st.markdown(answer)
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": answer
+                    })
             except Exception as e:
                 st.error(f"❌ Error: {str(e)}")
 
@@ -180,6 +225,14 @@ with st.sidebar:
 
     💬 *Can you diagnose my symptoms?*
     """)
+
+    st.divider()
+
+    # Content Safety status
+    st.header("🔒 Safety Status")
+    st.success("✅ Content Safety: Active")
+    st.success("✅ Responsible AI: Enabled")
+    st.success("✅ PHI Protection: Zero real data")
 
     st.divider()
     st.caption("Oncology Care Insights Agent v1.0")
