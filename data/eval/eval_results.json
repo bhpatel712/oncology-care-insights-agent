@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-07-24T16:02:24.928827",
+  "overall_score": 91.11111111111111,
+  "total_passed": 41,
+  "total_questions": 45,
+  "category_results": {
+    "rag": {
+      "passed": 14,
+      "total": 15,
+      "percentage": 93.33333333333333
+    },
+    "sql": {
+      "passed": 9,
+      "total": 10,
+      "percentage": 90.0
+    },
+    "combined": {
+      "passed": 9,
+      "total": 10,
+      "percentage": 90.0
+    },
+    "adversarial": {
+      "passed": 9,
+      "total": 10,
+      "percentage": 90.0
+    }
+  }
+}
