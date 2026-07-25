@@ -3,10 +3,21 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "projectName": {
-      "value": "oncologia"
+      "value": "oncology"
     },
     "environment": {
       "value": "dev"
+    },
+    "sqlAdminLogin": {
+      "value": "oncologyadmin"
+    },
+    "sqlAdminPassword": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/ca3533e3-dc43-4324-8cec-a77656b494fd/resourceGroups/oncology-agent-rg/providers/Microsoft.KeyVault/vaults/oncology-kv-2026"
+        },
+        "secretName": "sql-admin-password"
+      }
     }
   }
 }
