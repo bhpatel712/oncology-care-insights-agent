@@ -8,6 +8,9 @@
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 ---
+## 🎬 Demo Video
+
+[▶️ Watch Full Demo (9:38 min)](docs/demo.mp4)
 
 ## 📋 Project Overview
 
